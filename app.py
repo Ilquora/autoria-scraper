@@ -10,17 +10,14 @@ import asyncpg
 import subprocess
 import logging
 
-# Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Загрузка переменных окружения
 load_dotenv()
 
-# Конфигурация
 DB_CONFIG = {
     "user": os.getenv("POSTGRES_USER"),
     "password": os.getenv("POSTGRES_PASSWORD"),
@@ -44,7 +41,6 @@ async def create_db_pool():
     )
 
 async def fetch_html(url):
-    """Асинхронно загружает HTML страницу"""
     try:
         async with aiohttp.ClientSession() as session:
             headers = {
@@ -64,7 +60,6 @@ def parse_car_page(html, url):
     """Парсит страницу автомобиля и извлекает данные"""
     soup = BeautifulSoup(html, 'lxml')
     
-    # Извлечение данных
     title = soup.select_one('h1.head').text.strip() if soup.select_one('h1.head') else ""
     
     price_elem = soup.select_one('div.price_value strong')
@@ -105,7 +100,6 @@ def parse_car_page(html, url):
     }
 
 async def get_all_pages(base_url):
-    """Получает список всех страниц для скрапинга"""
     logger.info(f"Getting all pages from {base_url}")
     html = await fetch_html(base_url)
     if not html:
@@ -122,7 +116,6 @@ async def get_all_pages(base_url):
     return [f"{base_url}?page={i}" for i in range(1, last_page + 1)]
 
 async def get_car_links(page_url):
-    """Получает список ссылок на автомобили со страницы"""
     logger.info(f"Getting car links from {page_url}")
     html = await fetch_html(page_url)
     if not html:
@@ -136,7 +129,6 @@ async def get_car_links(page_url):
     return links
 
 async def save_car_data(pool, car_data):
-    """Сохраняет данные автомобиля в базу данных"""
     async with pool.acquire() as conn:
         try:
             await conn.execute("""
@@ -173,7 +165,7 @@ async def scrape_site():
                         if html:
                             car_data = parse_car_page(html, car_url)
                             await save_car_data(pool, car_data)
-                        await asyncio.sleep(0.5)  # Задержка между запросами
+                        await asyncio.sleep(0.5)
                     except Exception as e:
                         logger.error(f"Error processing car {car_url}: {str(e)}")
             except Exception as e:
@@ -186,7 +178,6 @@ async def scrape_site():
     logger.info("Scraping completed")
 
 def create_dump():
-    """Создает дамп базы данных"""
     logger.info("Creating database dump")
     try:
         os.makedirs("dumps", exist_ok=True)
@@ -207,13 +198,10 @@ def create_dump():
         logger.error(f"Dump failed: {str(e)}")
 
 async def main():
-    """Основная функция приложения"""
     logger.info("Application starting")
-    
-    # Создаем планировщик
+   
     scheduler = AsyncIOScheduler()
     
-    # Добавляем задачи по расписанию
     scraping_hour, scraping_minute = map(int, SCRAPING_TIME.split(':'))
     scheduler.add_job(scrape_site, 'cron', hour=scraping_hour, minute=scraping_minute)
     
